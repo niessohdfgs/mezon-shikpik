@@ -11,7 +11,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+from datetime import timedelta
 
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,8 +24,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-3^46+z=eqo+m^$*biycpxonxk7e5e)d_o$69brcw*0fixueh-+'
-
+# SECRET_KEY = 'django-insecure-3^46+z=eqo+m^$*biycpxonxk7e5e)d_o$69brcw*0fixueh-+'
+SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -48,6 +52,7 @@ INSTALLED_APPS = [
     'patterns',
     'orders',
     'payments',
+    "commerce",
 ]
 
 MIDDLEWARE = [
@@ -86,12 +91,15 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB"),
+        "USER": os.getenv("POSTGRES_USER"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+        "HOST": os.getenv("POSTGRES_HOST"),
+        "PORT": os.getenv("POSTGRES_PORT"),
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -135,3 +143,49 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+AUTH_USER_MODEL = "accounts.User"
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "accounts.authentication.SessionAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+}
+
+
+# Zarinpal
+
+ZARINPAL_MERCHANT_ID = os.getenv(
+    "ZARINPAL_MERCHANT_ID"
+)
+
+
+ZARINPAL_CALLBACK_URL = os.getenv(
+    "ZARINPAL_CALLBACK_URL",
+    "http://127.0.0.1:8000/api/payment/verify/"
+)
+
+
+CACHES = {
+
+    "default": {
+
+        "BACKEND": "django_redis.cache.RedisCache",
+
+        "LOCATION": "redis://redis:6379/1",
+
+        "OPTIONS": {
+            "CLIENT_CLASS":
+            "django_redis.client.DefaultClient",
+        },
+
+    }
+
+}
