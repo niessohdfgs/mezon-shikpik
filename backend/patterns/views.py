@@ -1,27 +1,35 @@
 from rest_framework.generics import (
     ListAPIView,
-    RetrieveAPIView
-)
-
-from .models import Pattern
-from .serializers import PatternSerializer
-from rest_framework.generics import (
+    RetrieveAPIView,
     ListCreateAPIView,
-    RetrieveUpdateDestroyAPIView
+    RetrieveUpdateDestroyAPIView,
 )
 
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import (
+    IsAuthenticated
+)
 
-from accounts.permissions import IsAdmin
-
-from .models import Pattern
-from .serializers import PatternSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+
+from django.shortcuts import get_object_or_404
+
+
+from .models import Pattern
+
+from .serializers import PatternSerializer
 
 from .permissions import HasPatternAccess
 
+from accounts.permissions import IsAdmin
+
+
+
+
+
+# =========================
+# Public Patterns
+# =========================
 
 
 class PatternListView(ListAPIView):
@@ -31,6 +39,8 @@ class PatternListView(ListAPIView):
     )
 
     serializer_class = PatternSerializer
+
+
 
 
 
@@ -46,6 +56,15 @@ class PatternDetailView(RetrieveAPIView):
 
 
 
+
+
+
+
+# =========================
+# Admin Pattern
+# =========================
+
+
 class AdminPatternListCreateView(ListCreateAPIView):
 
     queryset = Pattern.objects.all()
@@ -59,7 +78,11 @@ class AdminPatternListCreateView(ListCreateAPIView):
 
 
 
-class AdminPatternDetailView(RetrieveUpdateDestroyAPIView):
+
+
+class AdminPatternDetailView(
+    RetrieveUpdateDestroyAPIView
+):
 
     queryset = Pattern.objects.all()
 
@@ -71,6 +94,16 @@ class AdminPatternDetailView(RetrieveUpdateDestroyAPIView):
     ]
 
 
+
+
+
+
+
+# =========================
+# Pattern Download
+# =========================
+
+
 class PatternDownloadView(APIView):
 
     permission_classes = [
@@ -79,15 +112,23 @@ class PatternDownloadView(APIView):
     ]
 
 
-    def get(self, request, pk):
+    def get(
+        self,
+        request,
+        pk
+    ):
 
-        pattern = Pattern.objects.get(
+        pattern = get_object_or_404(
+            Pattern,
             id=pk
         )
 
 
-        return Response({
-            "file": request.build_absolute_uri(
-                pattern.file.url
-            )
-        })
+        return Response(
+            {
+                "file":
+                request.build_absolute_uri(
+                    pattern.file.url
+                )
+            }
+        )

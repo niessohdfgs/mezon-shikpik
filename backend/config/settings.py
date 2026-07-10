@@ -162,16 +162,11 @@ SIMPLE_JWT = {
 
 # Zarinpal
 
-ZARINPAL_MERCHANT_ID = os.getenv(
-    "ZARINPAL_MERCHANT_ID"
+ZARINPAL_MERCHANT_ID = "YOUR-MERCHANT-ID"
+
+ZARINPAL_CALLBACK_URL = (
+    "http://localhost:8000/api/payment/verify/"
 )
-
-
-ZARINPAL_CALLBACK_URL = os.getenv(
-    "ZARINPAL_CALLBACK_URL",
-    "http://127.0.0.1:8000/api/payment/verify/"
-)
-
 
 CACHES = {
 

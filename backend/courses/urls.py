@@ -1,23 +1,41 @@
 from django.urls import path
-from .views import (
-    AdminChapterListCreateView,
-    AdminChapterDetailView
-)
 
-from .views import *
+from .views import (
+    CourseListView,
+    CourseDetailView,
+
+    AdminCourseListCreateView,
+    AdminCourseDetailView,
+
+    AdminChapterListCreateView,
+    AdminChapterDetailView,
+
+    AdminLessonListCreateView,
+    AdminLessonDetailView,
+
+    CourseContentView,
+
+    LessonProgressView,
+    LessonDetailView,
+    LessonStreamView,
+    LessonHeartbeatView,
+
+    ContinueWatchingView,
+)
 
 
 urlpatterns = [
+
+    # Public
 
     path(
         "",
         CourseListView.as_view()
     ),
 
-    path(
-        "<slug:slug>/",
-        CourseDetailView.as_view()
-    ),
+
+    # Admin
+
     path(
         "admin/",
         AdminCourseListCreateView.as_view()
@@ -26,7 +44,8 @@ urlpatterns = [
     path(
         "admin/<int:pk>/",
         AdminCourseDetailView.as_view()
-        ),
+    ),
+
     path(
         "admin/chapters/",
         AdminChapterListCreateView.as_view()
@@ -36,6 +55,7 @@ urlpatterns = [
         "admin/chapters/<int:pk>/",
         AdminChapterDetailView.as_view()
     ),
+
     path(
         "admin/lessons/",
         AdminLessonListCreateView.as_view()
@@ -45,13 +65,28 @@ urlpatterns = [
         "admin/lessons/<int:pk>/",
         AdminLessonDetailView.as_view()
     ),
+
+
+    # Learning
+
     path(
         "<int:pk>/content/",
         CourseContentView.as_view()
     ),
+
     path(
-        "<int:pk>/content/",
-        MyCourseContentView.as_view()
+        "lessons/<int:pk>/",
+        LessonDetailView.as_view()
+    ),
+
+    path(
+        "lessons/<int:pk>/stream/",
+        LessonStreamView.as_view()
+    ),
+
+    path(
+        "lessons/<int:pk>/heartbeat/",
+        LessonHeartbeatView.as_view()
     ),
 
     path(
@@ -63,4 +98,13 @@ urlpatterns = [
         "continue-watching/",
         ContinueWatchingView.as_view()
     ),
+
+
+    # Course Detail آخر باشد
+
+    path(
+        "<slug:slug>/",
+        CourseDetailView.as_view()
+    ),
+
 ]

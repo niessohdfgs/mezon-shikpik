@@ -1,59 +1,87 @@
+from rest_framework.generics import (
+    ListAPIView,
+    RetrieveAPIView,
+    ListCreateAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+
+from rest_framework.permissions import (
+    IsAuthenticated
+)
+
+from django.shortcuts import get_object_or_404
+
+
 from .models import (
     Course,
     Chapter,
-    Lesson
+    Lesson,
+    LessonProgress,
 )
-from rest_framework.generics import ListAPIView, RetrieveAPIView
-from .models import Chapter
-from .models import Course
-from .serializers import CourseSerializer
-from rest_framework.generics import (
-    ListCreateAPIView,
-    RetrieveUpdateDestroyAPIView
-)
-from rest_framework.generics import (
-    ListCreateAPIView,
-    RetrieveUpdateDestroyAPIView
-)
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 
-from .permissions import HasCourseAccess
-from rest_framework.permissions import IsAuthenticated
 
-from accounts.permissions import IsAdmin
 from .serializers import (
     CourseSerializer,
     ChapterSerializer,
-    LessonSerializer
+    LessonSerializer,
+    LessonProgressSerializer,
 )
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .models import LessonProgress
-from .serializers import LessonProgressSerializer
 
-from .models import CoursePurchase
+
+from accounts.permissions import IsAdmin
+
+
+from commerce.services.access import AccessService
+
+
+
+
+
+# =========================
+# Public Course
+# =========================
+
 
 class CourseListView(ListAPIView):
+
     queryset = Course.objects.filter(
         is_published=True
     )
+
     serializer_class = CourseSerializer
+
+
+
 
 
 class CourseDetailView(RetrieveAPIView):
+
     queryset = Course.objects.filter(
         is_published=True
     )
+
     serializer_class = CourseSerializer
+
     lookup_field = "slug"
+
+
+
+
+
+
+
+# =========================
+# Admin Course
+# =========================
 
 
 class AdminCourseListCreateView(ListCreateAPIView):
 
     queryset = Course.objects.all()
+
     serializer_class = CourseSerializer
 
     permission_classes = [
@@ -63,9 +91,14 @@ class AdminCourseListCreateView(ListCreateAPIView):
 
 
 
-class AdminCourseDetailView(RetrieveUpdateDestroyAPIView):
+
+
+class AdminCourseDetailView(
+    RetrieveUpdateDestroyAPIView
+):
 
     queryset = Course.objects.all()
+
     serializer_class = CourseSerializer
 
     permission_classes = [
@@ -74,11 +107,20 @@ class AdminCourseDetailView(RetrieveUpdateDestroyAPIView):
     ]
 
 
+
+
+
+
+
+# =========================
+# Admin Chapter
+# =========================
 
 
 class AdminChapterListCreateView(ListCreateAPIView):
 
     queryset = Chapter.objects.all()
+
     serializer_class = ChapterSerializer
 
     permission_classes = [
@@ -88,20 +130,36 @@ class AdminChapterListCreateView(ListCreateAPIView):
 
 
 
-class AdminChapterDetailView(RetrieveUpdateDestroyAPIView):
+
+
+class AdminChapterDetailView(
+    RetrieveUpdateDestroyAPIView
+):
 
     queryset = Chapter.objects.all()
+
     serializer_class = ChapterSerializer
 
     permission_classes = [
         IsAuthenticated,
         IsAdmin
     ]
+
+
+
+
+
+
+
+# =========================
+# Admin Lesson
+# =========================
 
 
 class AdminLessonListCreateView(ListCreateAPIView):
 
     queryset = Lesson.objects.all()
+
     serializer_class = LessonSerializer
 
     permission_classes = [
@@ -111,15 +169,31 @@ class AdminLessonListCreateView(ListCreateAPIView):
 
 
 
-class AdminLessonDetailView(RetrieveUpdateDestroyAPIView):
+
+
+class AdminLessonDetailView(
+    RetrieveUpdateDestroyAPIView
+):
 
     queryset = Lesson.objects.all()
+
     serializer_class = LessonSerializer
 
     permission_classes = [
         IsAuthenticated,
         IsAdmin
     ]
+
+
+
+
+
+
+
+# =========================
+# Course Access
+# =========================
+
 
 class CourseContentView(APIView):
 
@@ -128,33 +202,44 @@ class CourseContentView(APIView):
     ]
 
 
-    def get(self, request, pk):
+    def get(
+        self,
+        request,
+        pk
+    ):
 
-        course = Course.objects.get(
+        course = get_object_or_404(
+            Course,
             id=pk
         )
 
-        has_access = Purchase.objects.filter(
-            user=request.user,
-            course=course
-        ).exists()
+
+        has_access = AccessService.has_course_access(
+            request.user,
+            course
+        )
 
 
         if not has_access:
+
             return Response(
                 {
-                    "error":"You don't own this course"
+                    "error":
+                    "You don't own this course"
                 },
                 status=403
             )
 
 
-        serializer = CourseSerializer(course)
-
         return Response(
-            serializer.data
+            CourseSerializer(course).data
         )
-    
+
+
+
+
+
+
 
 class MyCourseContentView(APIView):
 
@@ -163,32 +248,49 @@ class MyCourseContentView(APIView):
     ]
 
 
-    def get(self, request, pk):
+    def get(
+        self,
+        request,
+        pk
+    ):
 
-        access = CoursePurchase.objects.filter(
-            user=request.user,
-            course_id=pk
-        ).exists()
+        course = get_object_or_404(
+            Course,
+            id=pk
+        )
 
 
-        if not access:
+        has_access = AccessService.has_course_access(
+            request.user,
+            course
+        )
+
+
+        if not has_access:
+
             return Response(
                 {
-                    "error": "No access"
+                    "error":
+                    "No access"
                 },
                 status=403
             )
 
 
-        course = Course.objects.get(
-            id=pk
-        )
-
-
         return Response(
             CourseSerializer(course).data
         )
-    
+
+
+
+
+
+
+
+# =========================
+# Lesson Progress
+# =========================
+
 
 class LessonProgressView(APIView):
 
@@ -197,31 +299,52 @@ class LessonProgressView(APIView):
     ]
 
 
-    def post(self, request, lesson_id):
+    def post(
+        self,
+        request,
+        lesson_id
+    ):
 
         progress, created = LessonProgress.objects.get_or_create(
+
             user=request.user,
+
             lesson_id=lesson_id
+
         )
 
 
         progress.watched_seconds = request.data.get(
+
             "watched_seconds",
+
             progress.watched_seconds
+
         )
+
 
         progress.completed = request.data.get(
+
             "completed",
+
             progress.completed
+
         )
 
+
         progress.save()
+
 
 
         return Response(
             LessonProgressSerializer(progress).data
         )
-    
+
+
+
+
+
+
 
 class ContinueWatchingView(APIView):
 
@@ -230,20 +353,199 @@ class ContinueWatchingView(APIView):
     ]
 
 
-    def get(self, request):
+    def get(
+        self,
+        request
+    ):
+
 
         progress = LessonProgress.objects.filter(
+
             user=request.user,
+
             completed=False
+
         ).order_by(
+
             "-updated_at"
+
         ).first()
 
 
+
         if not progress:
+
             return Response(
                 {}
             )
+
+
+
+        return Response(
+            LessonProgressSerializer(progress).data
+        )
+    
+
+# =========================
+# Lesson Detail
+# =========================
+
+
+class LessonDetailView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def get(
+        self,
+        request,
+        pk
+    ):
+
+        lesson = get_object_or_404(
+            Lesson,
+            id=pk,
+            is_published=True
+        )
+
+
+        course = lesson.chapter.course
+
+
+        if not AccessService.has_course_access(
+            request.user,
+            course
+        ):
+
+            return Response(
+                {
+                    "error":
+                    "You don't own this course"
+                },
+                status=403
+            )
+
+
+        return Response(
+            LessonSerializer(lesson).data
+        )
+    
+
+
+# =========================
+# Lesson Stream
+# =========================
+
+
+class LessonStreamView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def get(
+        self,
+        request,
+        pk
+    ):
+
+        lesson = get_object_or_404(
+            Lesson,
+            id=pk,
+            is_published=True
+        )
+
+
+        course = lesson.chapter.course
+
+
+        if not AccessService.has_course_access(
+            request.user,
+            course
+        ):
+
+            return Response(
+                {
+                    "error":
+                    "You don't own this course"
+                },
+                status=403
+            )
+
+
+        return Response(
+            {
+                "video_url":
+                request.build_absolute_uri(
+                    lesson.video.url
+                )
+            }
+        )
+    
+
+# =========================
+# Lesson Heartbeat
+# =========================
+
+
+class LessonHeartbeatView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def post(
+        self,
+        request,
+        pk
+    ):
+
+        lesson = get_object_or_404(
+            Lesson,
+            id=pk
+        )
+
+
+        course = lesson.chapter.course
+
+
+        if not AccessService.has_course_access(
+            request.user,
+            course
+        ):
+
+            return Response(
+                {
+                    "error":
+                    "You don't own this course"
+                },
+                status=403
+            )
+
+
+        progress, created = LessonProgress.objects.get_or_create(
+            user=request.user,
+            lesson=lesson
+        )
+
+
+        progress.watched_seconds = request.data.get(
+            "watched_seconds",
+            progress.watched_seconds
+        )
+
+
+        progress.completed = request.data.get(
+            "completed",
+            progress.completed
+        )
+
+
+        progress.save()
 
 
         return Response(

@@ -1,28 +1,40 @@
 from django.urls import path
 
+
 from .views import (
-    ProductListView,
+
     CartView,
     CartItemCreateView,
     CartItemDeleteView,
+
     CheckoutView,
+
     OrderListView,
+
     PurchaseListView,
+
+    ProductListView,
+
+    MyCoursesView,
+    MyPatternsView,
+    MyOrdersView,
+    DiscountValidateView,
 )
 
-from .payment_views import (
-    PaymentRequestView,
-    PaymentVerifyView,
-)
 
 
 urlpatterns = [
+
+
+    # Products
 
     path(
         "products/",
         ProductListView.as_view()
     ),
 
+
+    # Cart
 
     path(
         "cart/",
@@ -42,11 +54,15 @@ urlpatterns = [
     ),
 
 
+    # Checkout
+
     path(
         "checkout/",
         CheckoutView.as_view()
     ),
 
+
+    # Orders
 
     path(
         "orders/",
@@ -55,20 +71,33 @@ urlpatterns = [
 
 
     path(
+        "orders/me/",
+        MyOrdersView.as_view()
+    ),
+
+
+    # Purchases
+
+    path(
         "purchases/",
         PurchaseListView.as_view()
     ),
 
 
+    # Dashboard
+
     path(
-        "payment/request/",
-        PaymentRequestView.as_view()
+        "my-courses/",
+        MyCoursesView.as_view()
     ),
 
 
     path(
-        "payment/verify/",
-        PaymentVerifyView.as_view()
+        "my-patterns/",
+        MyPatternsView.as_view()
     ),
-
+    path(
+        "discounts/validate/",
+        DiscountValidateView.as_view()
+    ),
 ]

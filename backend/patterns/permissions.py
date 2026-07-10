@@ -1,8 +1,11 @@
 from rest_framework.permissions import BasePermission
-from .models import PatternPurchase
+
+from commerce.models import Purchase
+
 
 
 class HasPatternAccess(BasePermission):
+
 
     def has_permission(
         self,
@@ -10,9 +13,19 @@ class HasPatternAccess(BasePermission):
         view
     ):
 
-        pattern_id = view.kwargs.get("pk")
+        if not request.user.is_authenticated:
+            return False
 
-        return PatternPurchase.objects.filter(
+
+        pattern_id = view.kwargs.get(
+            "pk"
+        )
+
+
+        return Purchase.objects.filter(
+
             user=request.user,
-            pattern_id=pattern_id
+
+            product__pattern_id=pattern_id
+
         ).exists()

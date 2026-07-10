@@ -1,20 +1,22 @@
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+
+from datetime import timedelta
+
+import secrets
+
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
+
 from rest_framework_simplejwt.tokens import RefreshToken
 
-import secrets
 
 from .models import UserSession
-from .serializers import (
-    UserSerializer,
-    UserSessionSerializer,
-    RegisterSerializer,
-    LoginSerializer,
-)
+
+from .serializers import UserSerializer
 
 from .services.otp import OTPService
 
@@ -25,96 +27,13 @@ User = get_user_model()
 
 
 
-class RegisterView(APIView):
-
-    def post(self, request):
-
-        serializer = RegisterSerializer(
-            data=request.data
-        )
-
-
-        serializer.is_valid(
-            raise_exception=True
-        )
-
-
-        user = serializer.save()
-
-
-        refresh = RefreshToken.for_user(
-            user
-        )
-
-
-        return Response(
-            {
-                "user":
-                    UserSerializer(user).data,
-
-                "refresh":
-                    str(refresh),
-
-                "access":
-                    str(
-                        refresh.access_token
-                    )
-            }
-        )
-
-
-
-
-
-
-class LoginView(APIView):
-
-    def post(self, request):
-
-        serializer = LoginSerializer(
-            data=request.data
-        )
-
-
-        serializer.is_valid(
-            raise_exception=True
-        )
-
-
-        user = serializer.validated_data[
-            "user"
-        ]
-
-
-        refresh = RefreshToken.for_user(
-            user
-        )
-
-
-        return Response(
-            {
-                "user":
-                    UserSerializer(user).data,
-
-                "refresh":
-                    str(refresh),
-
-                "access":
-                    str(
-                        refresh.access_token
-                    )
-            }
-        )
-
-
-
-
-
-
 
 class SendOTPView(APIView):
 
-    def post(self, request):
+    def post(
+        self,
+        request
+    ):
 
         phone = request.data.get(
             "phone"
@@ -132,8 +51,14 @@ class SendOTPView(APIView):
             )
 
 
+
+        result = OTPService.send_otp(
+            phone
+        )
+
+
         return Response(
-            OTPService.send_otp(phone)
+            result
         )
 
 
@@ -145,15 +70,21 @@ class SendOTPView(APIView):
 
 class VerifyOTPView(APIView):
 
-    def post(self, request):
+    def post(
+        self,
+        request
+    ):
+
 
         phone = request.data.get(
             "phone"
         )
 
+
         code = request.data.get(
             "code"
         )
+
 
 
         if not phone or not code:
@@ -168,10 +99,14 @@ class VerifyOTPView(APIView):
 
 
 
-        if not OTPService.verify_otp(
+        is_valid = OTPService.verify_otp(
             phone,
             code
-        ):
+        )
+
+
+
+        if not is_valid:
 
             return Response(
                 {
@@ -183,12 +118,17 @@ class VerifyOTPView(APIView):
 
 
 
+
         user, created = User.objects.get_or_create(
+
             phone=phone,
+
             defaults={
                 "role": "student"
             }
+
         )
+
 
 
 
@@ -204,6 +144,13 @@ class VerifyOTPView(APIView):
 
 
 
+
+
+        session_key = secrets.token_hex(32)
+
+
+
+
         UserSession.cleanup_old_sessions(
             user
         )
@@ -214,23 +161,32 @@ class VerifyOTPView(APIView):
 
             user=user,
 
-            session_key=secrets.token_hex(
-                32
-            ),
+            session_key=session_key,
+
 
             device_name=request.data.get(
                 "device_name",
                 "unknown"
             ),
 
+
             ip_address=request.META.get(
                 "REMOTE_ADDR"
             ),
 
+
             user_agent=request.META.get(
                 "HTTP_USER_AGENT"
-            )
+            ),
+
+
+            expires_at=timezone.now()
+            +
+            timedelta(days=7)
+
         )
+
+
 
 
 
@@ -239,26 +195,84 @@ class VerifyOTPView(APIView):
         )
 
 
+
+
+
         return Response(
+
             {
+
                 "user":
                     UserSerializer(user).data,
+
 
                 "session":
                     session.session_key,
 
+
                 "expires_at":
                     session.expires_at,
 
+
                 "refresh":
                     str(refresh),
+
 
                 "access":
                     str(
                         refresh.access_token
                     )
+
+            }
+
+        )
+
+
+
+
+
+
+
+
+
+class LogoutView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def post(
+        self,
+        request
+    ):
+
+
+        session_key = request.data.get(
+            "session"
+        )
+
+
+        UserSession.objects.filter(
+
+            session_key=session_key,
+
+            user=request.user
+
+        ).update(
+
+            is_active=False
+
+        )
+
+
+        return Response(
+            {
+                "message":
+                "Logged out"
             }
         )
+
 
 
 
@@ -274,13 +288,18 @@ class MeView(APIView):
     ]
 
 
-    def get(self, request):
+    def get(
+        self,
+        request
+    ):
+
 
         return Response(
             UserSerializer(
                 request.user
             ).data
         )
+
 
 
 
@@ -296,20 +315,38 @@ class SessionListView(APIView):
     ]
 
 
-    def get(self, request):
+    def get(
+        self,
+        request
+    ):
+
 
         sessions = UserSession.objects.filter(
+
             user=request.user,
+
             is_active=True
+
         )
+
 
 
         return Response(
-            UserSessionSerializer(
-                sessions,
-                many=True
-            ).data
+            [
+                {
+                    "id": s.id,
+                    "device_name": s.device_name,
+                    "ip_address": s.ip_address,
+                    "user_agent": s.user_agent,
+                    "created_at": s.created_at,
+                    "last_activity": s.last_activity,
+                    "expires_at": s.expires_at
+                }
+
+                for s in sessions
+            ]
         )
+
 
 
 
@@ -325,7 +362,11 @@ class SessionLogoutView(APIView):
     ]
 
 
-    def post(self, request):
+    def post(
+        self,
+        request
+    ):
+
 
         session_id = request.data.get(
             "session_id"
@@ -333,10 +374,15 @@ class SessionLogoutView(APIView):
 
 
         UserSession.objects.filter(
+
             id=session_id,
+
             user=request.user
+
         ).update(
+
             is_active=False
+
         )
 
 
@@ -354,6 +400,7 @@ class SessionLogoutView(APIView):
 
 
 
+
 class LogoutAllSessionsView(APIView):
 
     permission_classes = [
@@ -361,12 +408,20 @@ class LogoutAllSessionsView(APIView):
     ]
 
 
-    def post(self, request):
+    def post(
+        self,
+        request
+    ):
+
 
         UserSession.objects.filter(
+
             user=request.user
+
         ).update(
+
             is_active=False
+
         )
 
 
@@ -374,5 +429,93 @@ class LogoutAllSessionsView(APIView):
             {
                 "message":
                 "All sessions logged out"
+            }
+        )
+    
+
+from django.contrib.auth import authenticate
+
+
+class RegisterView(APIView):
+
+    def post(self, request):
+
+        phone = request.data.get("phone")
+        password = request.data.get("password")
+
+        if not phone or not password:
+            return Response(
+                {
+                    "error": "phone and password required"
+                },
+                status=400
+            )
+
+
+        if User.objects.filter(phone=phone).exists():
+
+            return Response(
+                {
+                    "error": "User already exists"
+                },
+                status=400
+            )
+
+
+        user = User.objects.create_user(
+            phone=phone,
+            password=password,
+            role="student"
+        )
+
+
+        refresh = RefreshToken.for_user(user)
+
+
+        return Response(
+            {
+                "user": UserSerializer(user).data,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token)
+            },
+            status=201
+        )
+
+
+
+
+
+class LoginView(APIView):
+
+    def post(self, request):
+
+        phone = request.data.get("phone")
+        password = request.data.get("password")
+
+
+        user = authenticate(
+            phone=phone,
+            password=password
+        )
+
+
+        if not user:
+
+            return Response(
+                {
+                    "error": "Invalid credentials"
+                },
+                status=400
+            )
+
+
+        refresh = RefreshToken.for_user(user)
+
+
+        return Response(
+            {
+                "user": UserSerializer(user).data,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token)
             }
         )

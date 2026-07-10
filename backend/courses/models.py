@@ -1,6 +1,6 @@
-
 from django.db import models
 from django.conf import settings
+
 
 
 class Course(models.Model):
@@ -45,6 +45,8 @@ class Course(models.Model):
 
 
 
+
+
 class Chapter(models.Model):
 
     course = models.ForeignKey(
@@ -63,7 +65,15 @@ class Chapter(models.Model):
 
 
     class Meta:
-        ordering = ["order"]
+        ordering = [
+            "order"
+        ]
+
+
+    def __str__(self):
+        return self.title
+
+
 
 
 
@@ -75,64 +85,66 @@ class Lesson(models.Model):
         related_name="lessons"
     )
 
+
     title = models.CharField(
         max_length=255
     )
+
 
     description = models.TextField(
         blank=True
     )
 
+
     video = models.FileField(
         upload_to="videos/"
     )
+
 
     duration = models.PositiveIntegerField(
         default=0
     )
 
+
     order = models.PositiveIntegerField(
         default=0
     )
 
+
     is_free = models.BooleanField(
         default=False
     )
+
 
     is_published = models.BooleanField(
         default=False
     )
 
 
-    class Meta:
-        ordering = ["order"]
-
-
-
-
-
-class CoursePurchase(models.Model):
-
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE
-    )
-
-    course = models.ForeignKey(
-        Course,
-        on_delete=models.CASCADE
-    )
-
     created_at = models.DateTimeField(
         auto_now_add=True
     )
 
 
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+
     class Meta:
-        unique_together = (
-            "user",
-            "course"
-        )
+
+        ordering = [
+            "order"
+        ]
+
+
+    def __str__(self):
+        return self.title
+
+
+
+
+
 
 class LessonProgress(models.Model):
 
@@ -141,18 +153,23 @@ class LessonProgress(models.Model):
         on_delete=models.CASCADE
     )
 
+
     lesson = models.ForeignKey(
         Lesson,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name="progresses"
     )
+
 
     watched_seconds = models.PositiveIntegerField(
         default=0
     )
 
+
     completed = models.BooleanField(
         default=False
     )
+
 
     updated_at = models.DateTimeField(
         auto_now=True
@@ -160,7 +177,12 @@ class LessonProgress(models.Model):
 
 
     class Meta:
+
         unique_together = (
             "user",
             "lesson"
         )
+
+
+    def __str__(self):
+        return f"{self.user} - {self.lesson}"

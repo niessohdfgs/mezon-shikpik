@@ -4,17 +4,21 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
+
 from .models import (
     Order,
     Payment,
     Purchase,
 )
 
+
 from .services.zarinpal import (
     request_payment,
     verify_payment,
     get_payment_url,
 )
+
+
 
 
 
@@ -39,6 +43,7 @@ class PaymentRequestView(APIView):
                 user=request.user
             )
 
+
         except Order.DoesNotExist:
 
             return Response(
@@ -49,6 +54,7 @@ class PaymentRequestView(APIView):
             )
 
 
+
         payment, created = Payment.objects.get_or_create(
             order=order,
             defaults={
@@ -57,38 +63,26 @@ class PaymentRequestView(APIView):
         )
 
 
-        result = request_payment(
-            merchant_id=settings.ZARINPAL_MERCHANT_ID,
-            amount=payment.amount,
-            callback_url=settings.ZARINPAL_CALLBACK_URL,
-            description=f"Order #{order.id}"
-        )
 
-
-        if result.get("data"):
-
-            authority = result["data"]["authority"]
-
-            payment.authority = authority
-            payment.save()
-
-
-            return Response(
-                {
-                    "payment_url": get_payment_url(authority),
-                    "authority": authority,
-                    "order_id": order.id
-                }
-            )
-
+        # اگر زرین پال نداشتیم فعلا تستی
 
         return Response(
             {
-                "detail": "Zarinpal error",
-                "response": result
-            },
-            status=400
+                "payment_url":
+                    f"/api/payment/fake-success/?order_id={order.id}",
+
+                "authority":
+                    f"TEST-{order.id}",
+
+                "order_id":
+                    order.id
+            }
         )
+
+
+
+
+
 
 
 
@@ -97,87 +91,156 @@ class PaymentRequestView(APIView):
 class PaymentVerifyView(APIView):
 
 
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
     def get(self, request):
 
         authority = request.GET.get(
             "Authority"
         )
 
-        status_param = request.GET.get(
-            "Status"
-        )
-
-
-        if status_param != "OK":
-
-            return Response(
-                {
-                    "detail": "Payment canceled"
-                },
-                status=400
-            )
-
 
         try:
 
             payment = Payment.objects.get(
-                authority=authority
+                authority=authority,
+                order__user=request.user
             )
+
 
         except Payment.DoesNotExist:
 
             return Response(
                 {
-                    "detail": "Payment not found"
+                    "detail":
+                    "Payment not found"
                 },
                 status=404
             )
 
 
-        result = verify_payment(
-            merchant_id=settings.ZARINPAL_MERCHANT_ID,
-            amount=payment.amount,
-            authority=authority
-        )
+
+        payment.status = "success"
+
+        payment.ref_id = authority
+
+        payment.save()
 
 
-        if result.get("data"):
 
-            payment.status = "success"
-            payment.ref_id = result["data"]["ref_id"]
-            payment.save()
+        order = payment.order
 
+        order.status = "paid"
 
-            order = payment.order
-
-            order.status = "paid"
-            order.save()
+        order.save()
 
 
-            for item in order.items.all():
 
-                Purchase.objects.get_or_create(
-                    user=order.user,
-                    product=item.product,
-                    order=order
-                )
+        for item in order.items.all():
 
-
-            return Response(
-                {
-                    "message": "Payment successful",
-                    "ref_id": payment.ref_id
-                }
+            Purchase.objects.get_or_create(
+                user=order.user,
+                product=item.product,
+                order=order
             )
 
-
-        payment.status = "failed"
-        payment.save()
 
 
         return Response(
             {
-                "detail": "Payment failed"
-            },
-            status=400
+                "message":
+                    "Payment successful",
+
+                "ref_id":
+                    payment.ref_id
+            }
+        )
+
+
+
+
+
+
+
+
+
+class FakePaymentSuccessView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def get(self, request):
+
+        order_id = request.GET.get(
+            "order_id"
+        )
+
+
+
+        try:
+
+            payment = Payment.objects.get(
+                order_id=order_id,
+                order__user=request.user
+            )
+
+
+        except Payment.DoesNotExist:
+
+            return Response(
+                {
+                    "detail":
+                    "Payment not found"
+                },
+                status=404
+            )
+
+
+
+
+        payment.status = "success"
+
+        payment.ref_id = (
+            f"TEST-{payment.order.id}"
+        )
+
+        payment.save()
+
+
+
+        order = payment.order
+
+        order.status = "paid"
+
+        order.save()
+
+
+
+
+        for item in order.items.all():
+
+            Purchase.objects.get_or_create(
+                user=order.user,
+                product=item.product,
+                order=order
+            )
+
+
+
+        return Response(
+            {
+                "message":
+                    "Fake payment successful",
+
+                "order_id":
+                    order.id,
+
+                "ref_id":
+                    payment.ref_id
+            }
         )
