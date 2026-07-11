@@ -11,6 +11,13 @@ class AccessService:
         course
     ):
 
+
+        if course.is_free:
+
+            return True
+
+
+
         return Purchase.objects.filter(
 
             user=user,
@@ -21,11 +28,14 @@ class AccessService:
 
 
 
+
+
     @staticmethod
     def has_pattern_access(
         user,
         pattern
     ):
+
 
         return Purchase.objects.filter(
 
@@ -34,6 +44,8 @@ class AccessService:
             product__pattern=pattern
 
         ).exists()
+
+
 
 
 

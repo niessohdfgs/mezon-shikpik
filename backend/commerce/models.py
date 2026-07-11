@@ -277,6 +277,7 @@ class OrderItem(models.Model):
 
     product = models.ForeignKey(
         Product,
+        related_name="order_items",
         on_delete=models.CASCADE
     )
 
@@ -287,7 +288,6 @@ class OrderItem(models.Model):
 
 
     price = models.PositiveIntegerField()
-
 
 
 

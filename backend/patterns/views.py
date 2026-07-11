@@ -12,6 +12,7 @@ from rest_framework.permissions import (
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
+
 from django.shortcuts import get_object_or_404
 
 
@@ -19,9 +20,12 @@ from .models import Pattern
 
 from .serializers import PatternSerializer
 
-from .permissions import HasPatternAccess
 
 from accounts.permissions import IsAdmin
+
+
+from commerce.services.access import AccessService
+
 
 
 
@@ -44,6 +48,8 @@ class PatternListView(ListAPIView):
 
 
 
+
+
 class PatternDetailView(RetrieveAPIView):
 
     queryset = Pattern.objects.filter(
@@ -53,6 +59,8 @@ class PatternDetailView(RetrieveAPIView):
     serializer_class = PatternSerializer
 
     lookup_field = "slug"
+
+
 
 
 
@@ -80,6 +88,9 @@ class AdminPatternListCreateView(ListCreateAPIView):
 
 
 
+
+
+
 class AdminPatternDetailView(
     RetrieveUpdateDestroyAPIView
 ):
@@ -99,6 +110,8 @@ class AdminPatternDetailView(
 
 
 
+
+
 # =========================
 # Pattern Download
 # =========================
@@ -107,8 +120,7 @@ class AdminPatternDetailView(
 class PatternDownloadView(APIView):
 
     permission_classes = [
-        IsAuthenticated,
-        HasPatternAccess
+        IsAuthenticated
     ]
 
 
@@ -118,10 +130,38 @@ class PatternDownloadView(APIView):
         pk
     ):
 
+
         pattern = get_object_or_404(
             Pattern,
-            id=pk
+            id=pk,
+            is_published=True
         )
+
+
+
+        has_access = AccessService.has_pattern_access(
+
+            request.user,
+
+            pattern
+
+        )
+
+
+
+        if not has_access:
+
+
+            return Response(
+                {
+                    "error":
+                    "You don't own this pattern"
+                },
+
+                status=403
+            )
+
+
 
 
         return Response(

@@ -52,7 +52,8 @@ INSTALLED_APPS = [
     'patterns',
     'orders',
     'payments',
-    "commerce",
+    'commerce',
+    'adminpanel',
 ]
 
 MIDDLEWARE = [

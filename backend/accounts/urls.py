@@ -63,10 +63,7 @@ urlpatterns = [
         "profile/",
         UserProfileView.as_view()
     ),
-    path(
-    "profile/",
-    UserProfileView.as_view()
-    ),
+
 
     path(
         "admin/users/",
