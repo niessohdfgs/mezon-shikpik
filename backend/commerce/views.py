@@ -1,18 +1,26 @@
+from django.conf import settings
+from django.shortcuts import get_object_or_404
+
+
 from rest_framework import status
 
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
+from rest_framework.permissions import IsAuthenticated
+
+
 from rest_framework.generics import (
     ListAPIView,
     RetrieveAPIView,
+    RetrieveDestroyAPIView,
     CreateAPIView,
     DestroyAPIView,
+    RetrieveUpdateDestroyAPIView,
+    ListCreateAPIView,
 )
 
-
-from rest_framework.permissions import IsAuthenticated
 
 
 from .models import (
@@ -21,8 +29,11 @@ from .models import (
     Order,
     Product,
     Purchase,
+    Wishlist,
+    Payment,
     Discount,
 )
+
 
 
 from .serializers import (
@@ -31,18 +42,37 @@ from .serializers import (
     CartItemSerializer,
     OrderSerializer,
     PurchaseSerializer,
+    WishlistSerializer,
+    DiscountSerializer,
 )
 
 
+
 from .services.order import OrderService
+
 from .services.discount import DiscountService
+
+
+from .services.zarinpal import (
+    request_payment,
+    verify_payment,
+    get_payment_url,
+)
+
 
 
 from courses.models import Course
 from courses.serializers import CourseSerializer
 
+
 from patterns.models import Pattern
 from patterns.serializers import PatternSerializer
+
+
+from accounts.permissions import IsAdmin
+
+
+
 
 
 
@@ -52,7 +82,7 @@ from patterns.serializers import PatternSerializer
 # =========================
 
 
-class CartView(RetrieveAPIView):
+class CartView(RetrieveDestroyAPIView):
 
     serializer_class = CartSerializer
 
@@ -71,12 +101,28 @@ class CartView(RetrieveAPIView):
 
 
 
+    def perform_destroy(
+        self,
+        instance
+    ):
+
+        instance.items.all().delete()
+
+        instance.discount = None
+
+        instance.save()
+
+
+
+
+
+
 
 
 
 
 # =========================
-# Add Cart Item
+# Cart Items
 # =========================
 
 
@@ -94,6 +140,7 @@ class CartItemCreateView(CreateAPIView):
         serializer
     ):
 
+
         cart, created = Cart.objects.get_or_create(
             user=self.request.user
         )
@@ -109,9 +156,6 @@ class CartItemCreateView(CreateAPIView):
 
 
 
-# =========================
-# Remove Cart Item
-# =========================
 
 
 class CartItemDeleteView(DestroyAPIView):
@@ -128,6 +172,7 @@ class CartItemDeleteView(DestroyAPIView):
         return CartItem.objects.filter(
             cart__user=self.request.user
         )
+
 
 
 
@@ -153,6 +198,7 @@ class CheckoutView(APIView):
         request
     ):
 
+
         try:
 
             order = OrderService.create_order(
@@ -170,29 +216,25 @@ class CheckoutView(APIView):
             )
 
 
+
         return Response(
             {
                 "message":
-                    "Order created successfully",
+                "Order created successfully",
 
                 "order_id":
-                    order.id,
+                order.id,
 
                 "amount":
-                    order.total_price,
+                order.total_price,
 
                 "status":
-                    order.status
+                order.status
             },
+
             status=status.HTTP_201_CREATED
         )
-
-
-
-
-
-
-
+    
 
 # =========================
 # Orders
@@ -215,6 +257,81 @@ class OrderListView(ListAPIView):
         ).order_by(
             "-id"
         )
+
+
+
+
+
+
+
+class OrderDetailView(RetrieveAPIView):
+
+    serializer_class = OrderSerializer
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def get_queryset(self):
+
+        return Order.objects.filter(
+            user=self.request.user
+        ).prefetch_related(
+            "items"
+        ).select_related(
+            "payment"
+        )
+
+
+
+
+
+
+
+
+
+# =========================
+# Admin Orders
+# =========================
+
+
+class AdminOrderListView(ListAPIView):
+
+    serializer_class = OrderSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+
+    queryset = Order.objects.all().order_by(
+        "-id"
+    )
+
+
+
+
+
+
+
+class AdminOrderDetailView(RetrieveAPIView):
+
+    serializer_class = OrderSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+
+    queryset = Order.objects.all().prefetch_related(
+        "items"
+    ).select_related(
+        "payment"
+    )
+
 
 
 
@@ -252,6 +369,7 @@ class PurchaseListView(ListAPIView):
 
 
 
+
 # =========================
 # Products
 # =========================
@@ -275,6 +393,7 @@ class ProductListView(ListAPIView):
 
 
 
+
 # =========================
 # User Dashboard
 # =========================
@@ -282,11 +401,11 @@ class ProductListView(ListAPIView):
 
 class MyCoursesView(ListAPIView):
 
+    serializer_class = CourseSerializer
+
     permission_classes = [
         IsAuthenticated
     ]
-
-    serializer_class = CourseSerializer
 
 
     def get_queryset(self):
@@ -299,13 +418,15 @@ class MyCoursesView(ListAPIView):
 
 
 
+
+
 class MyPatternsView(ListAPIView):
+
+    serializer_class = PatternSerializer
 
     permission_classes = [
         IsAuthenticated
     ]
-
-    serializer_class = PatternSerializer
 
 
     def get_queryset(self):
@@ -318,13 +439,15 @@ class MyPatternsView(ListAPIView):
 
 
 
+
+
 class MyOrdersView(ListAPIView):
+
+    serializer_class = OrderSerializer
 
     permission_classes = [
         IsAuthenticated
     ]
-
-    serializer_class = OrderSerializer
 
 
     def get_queryset(self):
@@ -342,8 +465,9 @@ class MyOrdersView(ListAPIView):
 
 
 
+
 # =========================
-# Discount Validate
+# Discount
 # =========================
 
 
@@ -381,11 +505,16 @@ class DiscountValidateView(APIView):
             )
 
 
+
         return Response(
             {
                 "valid": True,
-                "code": discount.code,
-                "percent": discount.percent
+
+                "code":
+                discount.code,
+
+                "percent":
+                discount.percent
             }
         )
 
@@ -395,10 +524,6 @@ class DiscountValidateView(APIView):
 
 
 
-
-# =========================
-# Apply Discount
-# =========================
 
 
 class ApplyDiscountView(APIView):
@@ -413,15 +538,11 @@ class ApplyDiscountView(APIView):
         request
     ):
 
-        code = request.data.get(
-            "code"
-        )
-
 
         try:
 
             discount = DiscountService.get_discount(
-                code
+                request.data.get("code")
             )
 
 
@@ -435,6 +556,7 @@ class ApplyDiscountView(APIView):
             )
 
 
+
         cart, created = Cart.objects.get_or_create(
             user=request.user
         )
@@ -445,16 +567,17 @@ class ApplyDiscountView(APIView):
         cart.save()
 
 
+
         return Response(
             {
                 "message":
-                    "Discount applied",
+                "Discount applied",
 
                 "code":
-                    discount.code,
+                discount.code,
 
                 "percent":
-                    discount.percent
+                discount.percent
             }
         )
 
@@ -464,10 +587,6 @@ class ApplyDiscountView(APIView):
 
 
 
-
-# =========================
-# Remove Discount
-# =========================
 
 
 class RemoveDiscountView(APIView):
@@ -482,6 +601,7 @@ class RemoveDiscountView(APIView):
         request
     ):
 
+
         cart, created = Cart.objects.get_or_create(
             user=request.user
         )
@@ -492,9 +612,427 @@ class RemoveDiscountView(APIView):
         cart.save()
 
 
+
         return Response(
             {
                 "message":
-                    "Discount removed"
+                "Discount removed"
             }
         )
+
+
+
+
+
+
+
+
+
+# =========================
+# Admin Discounts
+# =========================
+
+
+class AdminDiscountListCreateView(ListCreateAPIView):
+
+    serializer_class = DiscountSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+
+    queryset = Discount.objects.all().order_by(
+        "-id"
+    )
+
+
+
+
+
+
+
+
+class AdminDiscountDetailView(
+    RetrieveUpdateDestroyAPIView
+):
+
+    serializer_class = DiscountSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+
+    queryset = Discount.objects.all()
+
+
+
+# =========================
+# Wishlist
+# =========================
+
+
+class WishlistView(ListAPIView):
+
+    serializer_class = WishlistSerializer
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def get_queryset(self):
+
+        return Wishlist.objects.filter(
+            user=self.request.user
+        ).order_by(
+            "-id"
+        )
+
+
+
+
+
+
+
+
+
+class WishlistCreateView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def post(
+        self,
+        request
+    ):
+
+
+        product_id = request.data.get(
+            "product"
+        )
+
+
+
+        product = get_object_or_404(
+            Product,
+            id=product_id,
+            is_active=True
+        )
+
+
+
+        wishlist, created = Wishlist.objects.get_or_create(
+
+            user=request.user,
+
+            product=product
+
+        )
+
+
+
+        return Response(
+            WishlistSerializer(
+                wishlist
+            ).data,
+
+            status=status.HTTP_201_CREATED
+        )
+
+
+
+
+
+
+
+
+
+class WishlistDeleteView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def delete(
+        self,
+        request,
+        productId
+    ):
+
+
+        Wishlist.objects.filter(
+
+            user=request.user,
+
+            product_id=productId
+
+        ).delete()
+
+
+
+        return Response(
+            {
+                "message":
+                "Removed from wishlist"
+            }
+        )
+
+
+
+
+
+
+
+
+
+# =========================
+# Payment
+# =========================
+
+
+class PaymentCreateView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def post(
+        self,
+        request
+    ):
+
+
+        order = get_object_or_404(
+
+            Order,
+
+            id=request.data.get(
+                "order_id"
+            ),
+
+            user=request.user
+
+        )
+
+
+
+        payment = order.payment
+
+
+
+        result = request_payment(
+
+            settings.ZARINPAL_MERCHANT_ID,
+
+            payment.amount,
+
+            settings.ZARINPAL_CALLBACK_URL,
+
+            f"Order {order.id}"
+
+        )
+
+
+
+        authority = result.get(
+            "data",
+            {}
+        ).get(
+            "authority"
+        )
+
+
+
+        if not authority:
+
+            return Response(
+                {
+                    "detail":
+                    "Payment request failed",
+
+                    "response":
+                    result
+                },
+
+                status=400
+            )
+
+
+
+        payment.authority = authority
+
+        payment.gateway_response = result
+
+        payment.save()
+
+
+
+        return Response(
+            {
+                "payment_url":
+                get_payment_url(
+                    authority
+                ),
+
+                "authority":
+                authority
+            }
+        )
+
+
+
+
+
+
+
+
+
+class PaymentVerifyView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def get(
+        self,
+        request
+    ):
+
+
+        authority = request.query_params.get(
+            "Authority"
+        )
+
+
+
+        payment = get_object_or_404(
+
+            Payment,
+
+            authority=authority,
+
+            order__user=request.user
+
+        )
+
+
+
+        result = verify_payment(
+
+            settings.ZARINPAL_MERCHANT_ID,
+
+            payment.amount,
+
+            authority
+
+        )
+
+
+
+        payment.gateway_response = result
+
+
+
+        if result.get("data"):
+
+
+            payment.status = "success"
+
+
+            payment.ref_id = result["data"].get(
+                "ref_id"
+            )
+
+
+
+            order = payment.order
+
+
+
+            order.status = "paid"
+
+            order.save()
+
+
+
+            for item in order.items.all():
+
+
+                Purchase.objects.get_or_create(
+
+                    user=order.user,
+
+                    product=item.product,
+
+                    order=order
+
+                )
+
+
+
+        else:
+
+
+            payment.status = "failed"
+
+
+
+        payment.save()
+
+
+
+        return Response(
+            {
+                "status":
+                payment.status,
+
+                "ref_id":
+                payment.ref_id
+            }
+        )
+
+
+
+
+
+
+
+
+
+class PaymentCallbackView(APIView):
+
+
+    def get(
+        self,
+        request
+    ):
+
+
+        return Response(
+            {
+                "authority":
+                request.query_params.get(
+                    "Authority"
+                ),
+
+                "status":
+                request.query_params.get(
+                    "Status"
+                )
+            }
+        )
+
+
+
+
+
+

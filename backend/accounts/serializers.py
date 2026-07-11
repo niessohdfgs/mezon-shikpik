@@ -183,3 +183,56 @@ class TokenSerializer(serializers.Serializer):
             "refresh": str(refresh),
             "access": str(refresh.access_token)
         }
+    
+
+class UserProfileSerializer(serializers.ModelSerializer):
+
+
+    class Meta:
+
+        model = User
+
+        fields = [
+            "id",
+            "phone",
+            "role",
+            "is_blocked",
+            "created_at",
+            "updated_at",
+        ]
+
+
+        read_only_fields = [
+            "id",
+            "phone",
+            "role",
+            "is_blocked",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+
+
+    class Meta:
+
+        model = User
+
+        fields = [
+            "id",
+            "phone",
+            "role",
+            "is_blocked",
+            "is_active",
+            "is_staff",
+            "created_at",
+            "updated_at",
+        ]
+
+
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+        ]

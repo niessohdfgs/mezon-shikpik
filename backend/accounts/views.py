@@ -19,6 +19,17 @@ from .models import UserSession
 from .serializers import UserSerializer
 
 from .services.otp import OTPService
+from .serializers import UserProfileSerializer
+from rest_framework.generics import RetrieveUpdateAPIView  
+
+from rest_framework.generics import (
+    ListAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
+
+from .permissions import IsAdmin
+
+from .serializers import AdminUserSerializer
 
 
 
@@ -517,5 +528,135 @@ class LoginView(APIView):
                 "user": UserSerializer(user).data,
                 "refresh": str(refresh),
                 "access": str(refresh.access_token)
+            }
+        )
+    
+class UserProfileView(RetrieveUpdateAPIView):
+
+    serializer_class = UserProfileSerializer
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def get_object(self):
+
+        return self.request.user
+
+
+
+# =========================
+# Admin Users
+# =========================
+
+
+class AdminUserListView(ListAPIView):
+
+    serializer_class = AdminUserSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+
+    queryset = User.objects.all().order_by(
+        "-id"
+    )
+
+
+
+
+
+class AdminUserDetailView(
+    RetrieveUpdateDestroyAPIView
+):
+
+    serializer_class = AdminUserSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+
+    queryset = User.objects.all()
+
+
+
+
+
+
+
+class AdminUserBanView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+
+    def post(
+        self,
+        request,
+        pk
+    ):
+
+        user = User.objects.get(
+            id=pk
+        )
+
+
+        user.is_blocked = True
+
+        user.save()
+
+
+
+        return Response(
+            {
+                "message":
+                "User banned"
+            }
+        )
+
+
+
+
+
+
+
+
+class AdminUserUnbanView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+
+    def post(
+        self,
+        request,
+        pk
+    ):
+
+
+        user = User.objects.get(
+            id=pk
+        )
+
+
+        user.is_blocked = False
+
+        user.save()
+
+
+
+        return Response(
+            {
+                "message":
+                "User unbanned"
             }
         )

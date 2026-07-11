@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+
 from .models import (
     Product,
     Cart,
@@ -8,14 +9,25 @@ from .models import (
     OrderItem,
     Purchase,
     Discount,
+    Payment,
+    Wishlist,
 )
 
 
 
+
+# =========================
+# Product
+# =========================
+
+
 class ProductSerializer(serializers.ModelSerializer):
 
+
     class Meta:
+
         model = Product
+
         fields = [
             "id",
             "title",
@@ -28,17 +40,30 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+
+# =========================
+# Cart
+# =========================
+
+
 class CartItemSerializer(serializers.ModelSerializer):
+
 
     product_detail = ProductSerializer(
         source="product",
         read_only=True
     )
 
+
     total_price = serializers.SerializerMethodField()
 
 
+
     class Meta:
+
         model = CartItem
 
         fields = [
@@ -50,23 +75,36 @@ class CartItemSerializer(serializers.ModelSerializer):
         ]
 
 
-    def get_total_price(self, obj):
+
+    def get_total_price(
+        self,
+        obj
+    ):
 
         return obj.total_price()
 
 
 
+
+
+
+
+
 class CartSerializer(serializers.ModelSerializer):
+
 
     items = CartItemSerializer(
         many=True,
         read_only=True
     )
 
+
     total_price = serializers.SerializerMethodField()
 
 
+
     class Meta:
+
         model = Cart
 
         fields = [
@@ -76,13 +114,27 @@ class CartSerializer(serializers.ModelSerializer):
         ]
 
 
-    def get_total_price(self, obj):
+
+    def get_total_price(
+        self,
+        obj
+    ):
 
         return obj.total_price()
 
 
 
+
+
+
+
+# =========================
+# Order
+# =========================
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
+
 
     product_detail = ProductSerializer(
         source="product",
@@ -90,8 +142,11 @@ class OrderItemSerializer(serializers.ModelSerializer):
     )
 
 
+
     class Meta:
+
         model = OrderItem
+
 
         fields = [
             "id",
@@ -103,7 +158,35 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+
+
+    class Meta:
+
+        model = Payment
+
+
+        fields = [
+            "id",
+            "amount",
+            "status",
+            "authority",
+            "ref_id",
+            "created_at",
+        ]
+
+
+
+
+
+
+
 class OrderSerializer(serializers.ModelSerializer):
+
 
     items = OrderItemSerializer(
         many=True,
@@ -111,8 +194,16 @@ class OrderSerializer(serializers.ModelSerializer):
     )
 
 
+    payment = PaymentSerializer(
+        read_only=True
+    )
+
+
+
     class Meta:
+
         model = Order
+
 
         fields = [
             "id",
@@ -120,12 +211,24 @@ class OrderSerializer(serializers.ModelSerializer):
             "total_price",
             "discount",
             "items",
+            "payment",
             "created_at",
         ]
 
 
 
+
+
+
+
+
+# =========================
+# Purchase
+# =========================
+
+
 class PurchaseSerializer(serializers.ModelSerializer):
+
 
     product_detail = ProductSerializer(
         source="product",
@@ -133,8 +236,11 @@ class PurchaseSerializer(serializers.ModelSerializer):
     )
 
 
+
     class Meta:
+
         model = Purchase
+
 
         fields = [
             "id",
@@ -146,10 +252,23 @@ class PurchaseSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+
+
+# =========================
+# Discount
+# =========================
+
+
 class DiscountSerializer(serializers.ModelSerializer):
 
+
     class Meta:
+
         model = Discount
+
 
         fields = [
             "id",
@@ -157,3 +276,45 @@ class DiscountSerializer(serializers.ModelSerializer):
             "percent",
             "is_active",
         ]
+
+
+
+
+
+
+
+
+# =========================
+# Wishlist
+# =========================
+
+
+class WishlistSerializer(serializers.ModelSerializer):
+
+
+    product_detail = ProductSerializer(
+        source="product",
+        read_only=True
+    )
+
+
+
+    class Meta:
+
+        model = Wishlist
+
+
+        fields = [
+            "id",
+            "product",
+            "product_detail",
+            "created_at",
+        ]
+
+
+        read_only_fields = [
+            "created_at"
+        ]
+
+
+

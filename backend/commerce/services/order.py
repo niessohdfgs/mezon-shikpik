@@ -15,9 +15,9 @@ class OrderService:
     @staticmethod
     @transaction.atomic
     def create_order(
-        user,
-        discount=None
+        user
     ):
+
 
         cart, created = Cart.objects.get_or_create(
             user=user
@@ -36,19 +36,12 @@ class OrderService:
             )
 
 
+
+        discount = cart.discount
+
+
+
         total_price = cart.total_price()
-
-
-
-        if discount:
-
-            discount_amount = (
-                total_price *
-                discount.percent
-            ) // 100
-
-
-            total_price -= discount_amount
 
 
 
@@ -83,6 +76,7 @@ class OrderService:
 
 
 
+
         Payment.objects.create(
 
             order=order,
@@ -98,14 +92,15 @@ class OrderService:
         cart.items.all().delete()
 
 
+        # حذف تخفیف بعد از تبدیل سبد به سفارش
+
+        cart.discount = None
+
+        cart.save()
+
+
 
         return order
-    
-
-
-
-
-
 
 
 # {

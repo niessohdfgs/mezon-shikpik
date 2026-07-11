@@ -9,8 +9,14 @@ from .views import (
     SessionListView,
     SessionLogoutView,
     LogoutAllSessionsView,
+    UserProfileView,
 )
-
+from .views import (
+    AdminUserListView,
+    AdminUserDetailView,
+    AdminUserBanView,
+    AdminUserUnbanView,
+)
 
 urlpatterns = [
 
@@ -52,6 +58,37 @@ urlpatterns = [
     path(
         "logout-all/",
         LogoutAllSessionsView.as_view()
+    ),
+    path(
+        "profile/",
+        UserProfileView.as_view()
+    ),
+    path(
+    "profile/",
+    UserProfileView.as_view()
+    ),
+
+    path(
+        "admin/users/",
+        AdminUserListView.as_view()
+    ),
+
+
+    path(
+        "admin/users/<int:pk>/",
+        AdminUserDetailView.as_view()
+    ),
+
+
+    path(
+        "admin/users/<int:pk>/ban/",
+        AdminUserBanView.as_view()
+    ),
+
+
+    path(
+        "admin/users/<int:pk>/unban/",
+        AdminUserUnbanView.as_view()
     ),
 
 ]

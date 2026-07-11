@@ -10,6 +10,7 @@ from .views import (
     CheckoutView,
 
     OrderListView,
+    OrderDetailView,
 
     PurchaseListView,
 
@@ -18,15 +19,29 @@ from .views import (
     MyCoursesView,
     MyPatternsView,
     MyOrdersView,
-    DiscountValidateView,
-)
 
+    DiscountValidateView,
+
+    WishlistView,
+    WishlistCreateView,
+    WishlistDeleteView,
+
+    PaymentCreateView,
+    PaymentVerifyView,
+    PaymentCallbackView,
+    AdminOrderListView,
+    AdminOrderDetailView,
+
+    AdminDiscountListCreateView,
+    AdminDiscountDetailView,
+)
 
 
 urlpatterns = [
 
-
+    # =========================
     # Products
+    # =========================
 
     path(
         "products/",
@@ -34,7 +49,10 @@ urlpatterns = [
     ),
 
 
+
+    # =========================
     # Cart
+    # =========================
 
     path(
         "cart/",
@@ -54,7 +72,10 @@ urlpatterns = [
     ),
 
 
+
+    # =========================
     # Checkout
+    # =========================
 
     path(
         "checkout/",
@@ -62,7 +83,10 @@ urlpatterns = [
     ),
 
 
+
+    # =========================
     # Orders
+    # =========================
 
     path(
         "orders/",
@@ -76,7 +100,16 @@ urlpatterns = [
     ),
 
 
+    path(
+        "orders/<int:pk>/",
+        OrderDetailView.as_view()
+    ),
+
+
+
+    # =========================
     # Purchases
+    # =========================
 
     path(
         "purchases/",
@@ -84,7 +117,10 @@ urlpatterns = [
     ),
 
 
-    # Dashboard
+
+    # =========================
+    # User Dashboard
+    # =========================
 
     path(
         "my-courses/",
@@ -96,8 +132,82 @@ urlpatterns = [
         "my-patterns/",
         MyPatternsView.as_view()
     ),
+
+
+
+    # =========================
+    # Discount
+    # =========================
+
     path(
         "discounts/validate/",
         DiscountValidateView.as_view()
     ),
+
+
+
+    # =========================
+    # Wishlist
+    # =========================
+
+    path(
+        "wishlist/",
+        WishlistView.as_view()
+    ),
+
+
+    path(
+        "wishlist/add/",
+        WishlistCreateView.as_view()
+    ),
+
+
+    path(
+        "wishlist/<int:productId>/",
+        WishlistDeleteView.as_view()
+    ),
+
+
+    path(
+        "payments/create/",
+        PaymentCreateView.as_view()
+    ),
+
+
+    path(
+        "payments/verify/",
+        PaymentVerifyView.as_view()
+    ),
+
+
+    path(
+        "payments/callback/",
+        PaymentCallbackView.as_view()
+    ),
+    # =========================
+    # Admin Orders
+    # =========================
+
+
+    path(
+        "admin/orders/",
+        AdminOrderListView.as_view()
+    ),
+
+
+    path(
+        "admin/orders/<int:pk>/",
+        AdminOrderDetailView.as_view()
+    ),
+    path(
+        "admin/discounts/",
+        AdminDiscountListCreateView.as_view()
+    ),
+
+
+    path(
+        "admin/discounts/<int:pk>/",
+        AdminDiscountDetailView.as_view()
+    ),
+    
 ]
