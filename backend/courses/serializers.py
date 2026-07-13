@@ -1,27 +1,66 @@
 from rest_framework import serializers
-from .models import Course, Chapter, Lesson
 
-from .models import LessonProgress
+from .models import (
+    Course,
+    Chapter,
+    Lesson,
+    LessonProgress
+)
+
 
 
 class LessonSerializer(serializers.ModelSerializer):
 
     class Meta:
+
         model = Lesson
-        fields = "__all__"
+
+        fields = [
+            "id",
+            "title",
+            "description",
+            "duration",
+            "order",
+            "is_free",
+            "is_published",
+        ]
+
 
 
 
 class ChapterSerializer(serializers.ModelSerializer):
 
-    lessons = LessonSerializer(
-        many=True,
-        read_only=True
-    )
+    lessons = serializers.SerializerMethodField()
+
 
     class Meta:
+
         model = Chapter
-        fields = "__all__"
+
+        fields = [
+            "id",
+            "title",
+            "order",
+            "lessons",
+        ]
+
+
+    def get_lessons(
+        self,
+        obj
+    ):
+
+        lessons = obj.lessons.filter(
+            is_published=True
+        )
+
+
+        return LessonSerializer(
+            lessons,
+            many=True
+        ).data
+
+
 
 
 
@@ -32,9 +71,23 @@ class CourseSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+
     class Meta:
+
         model = Course
-        fields = "__all__"
+
+        fields = [
+            "id",
+            "title",
+            "slug",
+            "description",
+            "thumbnail",
+            "price",
+            "is_published",
+            "is_free",
+            "chapters",
+        ]
+
 
 
 
@@ -42,8 +95,11 @@ class CourseSerializer(serializers.ModelSerializer):
 class LessonProgressSerializer(serializers.ModelSerializer):
 
     class Meta:
+
         model = LessonProgress
+
         fields = "__all__"
+
         read_only_fields = [
             "user"
         ]

@@ -100,11 +100,18 @@ urlpatterns = [
     ),
 
 
-    # Course Detail آخر باشد
 
     path(
         "<slug:slug>/",
         CourseDetailView.as_view()
+    ),
+    path(
+    "lessons/<int:pk>/stream/",
+    LessonStreamView.as_view()
+    ),
+    path(
+        "lessons/<int:pk>/stream/",
+        LessonStreamView.as_view()
     ),
 
 ]

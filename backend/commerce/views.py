@@ -92,12 +92,15 @@ class CartView(RetrieveDestroyAPIView):
 
 
     def get_object(self):
-
         cart, created = Cart.objects.get_or_create(
             user=self.request.user
         )
 
-        return cart
+        return Cart.objects.prefetch_related(
+            "items__product"
+        ).get(
+            id=cart.id
+        )
 
 
 
@@ -135,27 +138,98 @@ class CartItemCreateView(CreateAPIView):
     ]
 
 
-    def perform_create(
+    def create(
         self,
-        serializer
+        request,
+        *args,
+        **kwargs
     ):
 
-
         cart, created = Cart.objects.get_or_create(
-            user=self.request.user
+            user=request.user
         )
 
 
-        serializer.save(
-            cart=cart
+        product_id = request.data.get(
+            "product"
         )
 
 
+        quantity = int(
+            request.data.get(
+                "quantity",
+                1
+            )
+        )
+
+
+        product = get_object_or_404(
+            Product,
+            id=product_id
+        )
+
+
+        if not product.is_active:
+
+            return Response(
+                {
+                    "error": "Product is inactive"
+                },
+                status=400
+            )
 
 
 
+        if Purchase.objects.filter(
+            user=request.user,
+            product=product
+        ).exists():
+
+            return Response(
+                {
+                    "error": "Product already purchased"
+                },
+                status=400
+            )
 
 
+
+        if quantity < 1:
+
+            return Response(
+                {
+                    "error": "Invalid quantity"
+                },
+                status=400
+            )
+
+
+
+        item, created = CartItem.objects.get_or_create(
+
+            cart=cart,
+
+            product=product,
+
+            defaults={
+                "quantity": quantity
+            }
+
+        )
+
+
+        if not created:
+
+            item.quantity += quantity
+
+            item.save()
+
+
+
+        return Response(
+            CartItemSerializer(item).data,
+            status=201
+        )
 
 
 class CartItemDeleteView(DestroyAPIView):
@@ -198,11 +272,37 @@ class CheckoutView(APIView):
         request
     ):
 
+        discount = None
+
+
+        discount_code = request.data.get(
+            "discount_code"
+        )
+
+
+        if discount_code:
+
+            discount = DiscountService.get_discount(
+                discount_code
+            )
+
+
+            if not discount:
+
+                return Response(
+                    {
+                        "error":
+                        "Invalid discount"
+                    },
+                    status=400
+                )
+
 
         try:
 
             order = OrderService.create_order(
-                request.user
+                request.user,
+                discount=discount
             )
 
 
@@ -212,9 +312,8 @@ class CheckoutView(APIView):
                 {
                     "detail": str(e)
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=400
             )
-
 
 
         return Response(
@@ -232,7 +331,7 @@ class CheckoutView(APIView):
                 order.status
             },
 
-            status=status.HTTP_201_CREATED
+            status=201
         )
     
 
@@ -254,6 +353,10 @@ class OrderListView(ListAPIView):
 
         return Order.objects.filter(
             user=self.request.user
+        ).select_related(
+            "payment"
+        ).prefetch_related(
+            "items__product"
         ).order_by(
             "-id"
         )
@@ -277,10 +380,10 @@ class OrderDetailView(RetrieveAPIView):
 
         return Order.objects.filter(
             user=self.request.user
-        ).prefetch_related(
-            "items"
         ).select_related(
             "payment"
+        ).prefetch_related(
+            "items__product"
         )
 
 
@@ -306,7 +409,11 @@ class AdminOrderListView(ListAPIView):
     ]
 
 
-    queryset = Order.objects.all().order_by(
+    queryset = Order.objects.all().select_related(
+        "payment"
+    ).prefetch_related(
+        "items__product"
+    ).order_by(
         "-id"
     )
 
@@ -326,14 +433,25 @@ class AdminOrderDetailView(RetrieveAPIView):
     ]
 
 
-    queryset = Order.objects.all().prefetch_related(
-        "items"
-    ).select_related(
+    queryset = Order.objects.all().select_related(
         "payment"
+    ).prefetch_related(
+        "items__product"
     )
 
 
+class AdminPurchaseListView(ListAPIView):
 
+    serializer_class = PurchaseSerializer
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+    queryset = Purchase.objects.all().order_by(
+        "-id"
+    )
 
 
 
@@ -358,6 +476,8 @@ class PurchaseListView(ListAPIView):
 
         return Purchase.objects.filter(
             user=self.request.user
+        ).select_related(
+            "product"
         ).order_by(
             "-id"
         )
@@ -688,14 +808,11 @@ class WishlistView(ListAPIView):
 
         return Wishlist.objects.filter(
             user=self.request.user
+        ).select_related(
+            "product"
         ).order_by(
             "-id"
         )
-
-
-
-
-
 
 
 
@@ -718,13 +835,11 @@ class WishlistCreateView(APIView):
         )
 
 
-
         product = get_object_or_404(
             Product,
             id=product_id,
             is_active=True
         )
-
 
 
         wishlist, created = Wishlist.objects.get_or_create(
@@ -736,19 +851,13 @@ class WishlistCreateView(APIView):
         )
 
 
-
         return Response(
             WishlistSerializer(
                 wishlist
             ).data,
 
-            status=status.HTTP_201_CREATED
+            status=201 if created else 200
         )
-
-
-
-
-
 
 
 
@@ -913,7 +1022,6 @@ class PaymentVerifyView(APIView):
         )
 
 
-
         payment = get_object_or_404(
 
             Payment,
@@ -923,6 +1031,19 @@ class PaymentVerifyView(APIView):
             order__user=request.user
 
         )
+
+
+        # جلوگیری از Verify دوباره
+
+        if payment.status == "success":
+
+            return Response(
+                {
+                    "status": "already_verified",
+
+                    "ref_id": payment.ref_id
+                }
+            )
 
 
 
@@ -957,12 +1078,13 @@ class PaymentVerifyView(APIView):
             order = payment.order
 
 
-
             order.status = "paid"
 
             order.save()
 
 
+
+            # ساخت Purchase
 
             for item in order.items.all():
 
@@ -979,6 +1101,16 @@ class PaymentVerifyView(APIView):
 
 
 
+            # مصرف تخفیف بعد از پرداخت موفق
+
+            if order.discount:
+
+                order.discount.used_count += 1
+
+                order.discount.save()
+
+
+
         else:
 
 
@@ -991,16 +1123,14 @@ class PaymentVerifyView(APIView):
 
 
         return Response(
+
             {
-                "status":
-                payment.status,
+                "status": payment.status,
 
-                "ref_id":
-                payment.ref_id
+                "ref_id": payment.ref_id
             }
+
         )
-
-
 
 
 

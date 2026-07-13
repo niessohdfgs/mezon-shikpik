@@ -64,7 +64,7 @@ class PaymentRequestView(APIView):
 
 
 
-        # اگر زرین پال نداشتیم فعلا تستی
+    
 
         return Response(
             {

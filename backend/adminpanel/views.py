@@ -1,9 +1,15 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+
+from rest_framework.permissions import (
+    IsAuthenticated,
+)
 
 
-from django.db.models import Sum, Count
+from django.db.models import (
+    Sum,
+    Count,
+)
 
 
 from accounts.models import User
@@ -33,7 +39,7 @@ class AdminDashboardView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsAdmin
+        IsAdmin,
     ]
 
 
@@ -69,26 +75,32 @@ class AdminDashboardView(APIView):
 
 
 
-
         return Response(
             {
+
                 "users":
-                    total_users,
+                total_users,
+
 
                 "courses":
-                    total_courses,
+                total_courses,
+
 
                 "patterns":
-                    total_patterns,
+                total_patterns,
+
 
                 "orders":
-                    total_orders,
+                total_orders,
+
 
                 "paid_orders":
-                    paid_orders,
+                paid_orders,
+
 
                 "total_sales":
-                    total_sales,
+                total_sales,
+
             }
         )
 
@@ -109,7 +121,7 @@ class SalesAnalyticsView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsAdmin
+        IsAdmin,
     ]
 
 
@@ -121,6 +133,7 @@ class SalesAnalyticsView(APIView):
 
         return Response(
             {
+
                 "total_sales":
                 Order.objects.filter(
                     status="paid"
@@ -129,10 +142,12 @@ class SalesAnalyticsView(APIView):
                 )["total"] or 0,
 
 
+
                 "paid_orders":
                 Order.objects.filter(
                     status="paid"
                 ).count(),
+
 
 
                 "pending_orders":
@@ -141,10 +156,12 @@ class SalesAnalyticsView(APIView):
                 ).count(),
 
 
+
                 "failed_orders":
                 Order.objects.filter(
                     status="failed"
                 ).count(),
+
             }
         )
 
@@ -165,7 +182,7 @@ class UsersAnalyticsView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsAdmin
+        IsAdmin,
     ]
 
 
@@ -177,8 +194,10 @@ class UsersAnalyticsView(APIView):
 
         return Response(
             {
+
                 "total_users":
                 User.objects.count(),
+
 
 
                 "students":
@@ -187,16 +206,19 @@ class UsersAnalyticsView(APIView):
                 ).count(),
 
 
+
                 "admins":
                 User.objects.filter(
                     role="admin"
                 ).count(),
 
 
+
                 "blocked_users":
                 User.objects.filter(
                     is_blocked=True
                 ).count(),
+
             }
         )
 
@@ -217,7 +239,7 @@ class ProductsAnalyticsView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        IsAdmin
+        IsAdmin,
     ]
 
 
@@ -229,34 +251,44 @@ class ProductsAnalyticsView(APIView):
 
         products = Product.objects.annotate(
 
-        sales_count=Count(
-            "order_items"
-        )
+            sales_count=Count(
+                "order_items"
+            )
 
-    ).order_by(
-        "-sales_count"
-    )[:10]
+        ).order_by(
+            "-sales_count"
+        )[:10]
 
 
 
         data = []
 
 
+
         for product in products:
 
             data.append(
                 {
+
                     "id":
                     product.id,
+
 
                     "title":
                     product.title,
 
+
                     "type":
                     product.type,
 
+
+                    "price":
+                    product.price,
+
+
                     "sales_count":
                     product.sales_count,
+
                 }
             )
 

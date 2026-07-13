@@ -1,59 +1,166 @@
-version: "3.9"
+
+
 
 services:
 
+
   backend:
+
     build:
+
       context: ./backend
+
 
     container_name: tailoring_backend
 
-    command: python manage.py runserver 0.0.0.0:8000
+
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+
 
     volumes:
+
       - ./backend:/app
 
-    ports:
-      - "8000:8000"
+
+    expose:
+
+      - "8000"
+
 
     env_file:
+
       - ./backend/.env
 
+
     depends_on:
+
       - db
       - redis
 
 
+
+
+
+  nginx:
+
+    image: nginx:latest
+
+
+    container_name: tailoring_nginx
+
+
+    ports:
+
+      - "80:80"
+
+
+    volumes:
+
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+
+      - ./backend/staticfiles:/app/staticfiles
+
+      - ./backend/media:/app/media
+
+
+    depends_on:
+
+      - backend
+
+
+
+
+
+
+  celery:
+
+
+    build:
+
+      context: ./backend
+
+
+    container_name: tailoring_celery
+
+
+    command: celery -A config worker --loglevel=info
+
+
+    volumes:
+
+      - ./backend:/app
+
+
+    env_file:
+
+      - ./backend/.env
+
+
+    depends_on:
+
+      - backend
+      - redis
+      - db
+
+
+
+
+
+
   db:
+
+
     image: postgres:15
+
 
     container_name: tailoring_postgres
 
+
     environment:
+
       POSTGRES_DB: tailoring
+
       POSTGRES_USER: postgres
+
       POSTGRES_PASSWORD: postgres
 
+
     ports:
+
       - "5432:5432"
 
+
     volumes:
+
       - postgres_data:/var/lib/postgresql/data
 
 
 
+
+
+
   redis:
+
+
     image: redis:7-alpine
+
 
     container_name: tailoring_redis
 
+
     restart: always
 
+
     ports:
+
       - "6379:6379"
 
 
 
+
+
+
 volumes:
+
 
   postgres_data:

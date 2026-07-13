@@ -5,7 +5,11 @@ from commerce.models import (
     Order,
     OrderItem,
     Payment,
+    Purchase,
 )
+
+from commerce.services.discount import DiscountService
+
 
 
 
@@ -15,7 +19,8 @@ class OrderService:
     @staticmethod
     @transaction.atomic
     def create_order(
-        user
+        user,
+        discount=None
     ):
 
 
@@ -37,13 +42,42 @@ class OrderService:
 
 
 
-        discount = cart.discount
+        # جلوگیری از خرید دوباره محصول
+
+        for item in items:
+
+            if Purchase.objects.filter(
+                user=user,
+                product=item.product
+            ).exists():
+
+                raise ValueError(
+                    f"{item.product.title} already purchased"
+                )
 
 
 
-        total_price = cart.total_price()
+        # مبلغ اولیه
+
+        total_price = sum(
+            item.total_price()
+            for item in items
+        )
 
 
+
+        # اعمال تخفیف
+
+        if discount:
+
+            total_price = DiscountService.calculate_final_price(
+                total_price,
+                discount
+            )
+
+
+
+        # ساخت سفارش
 
         order = Order.objects.create(
 
@@ -58,6 +92,8 @@ class OrderService:
         )
 
 
+
+        # ساخت آیتم‌های سفارش
 
         for item in items:
 
@@ -76,6 +112,7 @@ class OrderService:
 
 
 
+        # ساخت پرداخت pending
 
         Payment.objects.create(
 
@@ -89,10 +126,10 @@ class OrderService:
 
 
 
+        # سبد خرید خالی شود
+
         cart.items.all().delete()
 
-
-        # حذف تخفیف بعد از تبدیل سبد به سفارش
 
         cart.discount = None
 
@@ -101,19 +138,3 @@ class OrderService:
 
 
         return order
-
-
-# {
-#     "user": {
-#         "id": 6,
-#         "phone": "09111111111",
-#         "role": "student",
-#         "is_staff": false,
-#         "is_superuser": false,
-#         "is_blocked": false
-#     },
-#     "session": "5074c8c557effaf486c818adc2f108dd0f7da6380280721f3cbffb7bd199eb32",
-#     "expires_at": "2026-07-15T12:37:31.662527Z",
-#     "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc4NjEwNjI1MSwiaWF0IjoxNzgzNTE0MjUxLCJqdGkiOiI2NjFiMzc5YTU5Y2U0NjFkOTJjYTZiNjA1YjJkZmRhNSIsInVzZXJfaWQiOiI2In0.JEhlP499vzVDgr8lEA_FidTKolLWu6Z87shQeItwN20",
-#     "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzgzNTE2MDUxLCJpYXQiOjE3ODM1MTQyNTEsImp0aSI6ImRmZTcxYmMxYTFhNDQyNWY5ZmI4NDNkMDI0NDY5YjcxIiwidXNlcl9pZCI6IjYifQ.9nQGfUxQyqhx0wrzqLwhr4HUkNL52V_nSVC9twBUVRE"
-# }

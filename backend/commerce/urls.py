@@ -34,6 +34,7 @@ from .views import (
 
     AdminDiscountListCreateView,
     AdminDiscountDetailView,
+    AdminPurchaseListView,
 )
 
 
@@ -199,6 +200,7 @@ urlpatterns = [
         "admin/orders/<int:pk>/",
         AdminOrderDetailView.as_view()
     ),
+    
     path(
         "admin/discounts/",
         AdminDiscountListCreateView.as_view()
@@ -209,5 +211,9 @@ urlpatterns = [
         "admin/discounts/<int:pk>/",
         AdminDiscountDetailView.as_view()
     ),
-    
+
+    path(
+        "admin/purchases/",
+        AdminPurchaseListView.as_view()
+    ),
 ]

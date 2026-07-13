@@ -1,8 +1,6 @@
 from django.urls import path
 
 from .views import (
-    RegisterView,
-    LoginView,
     MeView,
     SendOTPView,
     VerifyOTPView,
@@ -16,19 +14,14 @@ from .views import (
     AdminUserDetailView,
     AdminUserBanView,
     AdminUserUnbanView,
+    DashboardView,
+    AdminUserRoleUpdateView,
 )
+from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
 
-    path(
-        "register/",
-        RegisterView.as_view()
-    ),
 
-    path(
-        "login/",
-        LoginView.as_view()
-    ),
 
     path(
         "send-otp/",
@@ -87,5 +80,18 @@ urlpatterns = [
         "admin/users/<int:pk>/unban/",
         AdminUserUnbanView.as_view()
     ),
+    path(
+         "token/refresh/",
+         TokenRefreshView.as_view(),
+         name="token_refresh"
+     ),
+    path(
+        "dashboard/",
+        DashboardView.as_view()
+    ),
 
+    path(
+        "admin/users/<int:pk>/role/",
+        AdminUserRoleUpdateView.as_view()
+    ),
 ]

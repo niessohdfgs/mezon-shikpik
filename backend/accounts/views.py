@@ -4,7 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 import secrets
-
+from django.shortcuts import get_object_or_404
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -31,7 +31,11 @@ from .permissions import IsAdmin
 
 from .serializers import AdminUserSerializer
 
-
+from commerce.models import Purchase, Order
+from commerce.serializers import (
+    PurchaseSerializer,
+    OrderSerializer,
+)
 
 User = get_user_model()
 
@@ -86,16 +90,13 @@ class VerifyOTPView(APIView):
         request
     ):
 
-
         phone = request.data.get(
             "phone"
         )
 
-
         code = request.data.get(
             "code"
         )
-
 
 
         if not phone or not code:
@@ -116,7 +117,6 @@ class VerifyOTPView(APIView):
         )
 
 
-
         if not is_valid:
 
             return Response(
@@ -126,7 +126,6 @@ class VerifyOTPView(APIView):
                 },
                 status=400
             )
-
 
 
 
@@ -142,7 +141,6 @@ class VerifyOTPView(APIView):
 
 
 
-
         if user.is_blocked:
 
             return Response(
@@ -155,17 +153,14 @@ class VerifyOTPView(APIView):
 
 
 
-
+        # ساخت session
 
         session_key = secrets.token_hex(32)
-
-
 
 
         UserSession.cleanup_old_sessions(
             user
         )
-
 
 
         session = UserSession.objects.create(
@@ -174,22 +169,18 @@ class VerifyOTPView(APIView):
 
             session_key=session_key,
 
-
             device_name=request.data.get(
                 "device_name",
                 "unknown"
             ),
 
-
             ip_address=request.META.get(
                 "REMOTE_ADDR"
             ),
 
-
             user_agent=request.META.get(
                 "HTTP_USER_AGENT"
             ),
-
 
             expires_at=timezone.now()
             +
@@ -199,19 +190,19 @@ class VerifyOTPView(APIView):
 
 
 
-
-
         refresh = RefreshToken.for_user(
             user
         )
 
 
 
-
-
         return Response(
 
             {
+
+                "is_new_user":
+                    created,
+
 
                 "user":
                     UserSerializer(user).data,
@@ -237,10 +228,6 @@ class VerifyOTPView(APIView):
             }
 
         )
-
-
-
-
 
 
 
@@ -658,5 +645,111 @@ class AdminUserUnbanView(APIView):
             {
                 "message":
                 "User unbanned"
+            }
+        )
+    
+
+class AdminUserRoleUpdateView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+
+    def patch(
+        self,
+        request,
+        pk
+    ):
+
+        user = get_object_or_404(
+            User,
+            id=pk
+        )
+
+
+        role = request.data.get(
+            "role"
+        )
+
+
+        if role not in [
+            "student",
+            "admin"
+        ]:
+
+            return Response(
+                {
+                    "error": "Invalid role"
+                },
+                status=400
+            )
+
+
+        user.role = role
+
+        user.is_staff = (
+            role == "admin"
+        )
+
+        user.save()
+
+
+        return Response(
+            UserSerializer(user).data
+        )
+
+class DashboardView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def get(
+        self,
+        request
+    ):
+
+        user = request.user
+
+
+        purchases = Purchase.objects.filter(
+            user=user
+        ).select_related(
+            "product",
+            "order"
+        )
+
+
+        orders = Order.objects.filter(
+            user=user
+        ).order_by(
+            "-id"
+        )[:5]
+
+
+
+        return Response(
+            {
+                "user": UserSerializer(user).data,
+
+                "stats": {
+                    "purchases_count": purchases.count(),
+                    "orders_count": Order.objects.filter(
+                        user=user
+                    ).count()
+                },
+
+                "purchases": PurchaseSerializer(
+                    purchases,
+                    many=True
+                ).data,
+
+                "orders": OrderSerializer(
+                    orders,
+                    many=True
+                ).data
             }
         )

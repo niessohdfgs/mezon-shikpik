@@ -1,22 +1,30 @@
+# Environment
+.env
+
 # Python
 __pycache__/
 *.py[cod]
-*.pyc
+*$py.class
 
-# Virtual environment
+# Virtual environments
 venv/
-.env
 .venv/
 
 # Django
 db.sqlite3
+
+# User uploads
 media/
+
+# Collected static files
 staticfiles/
 
-# Node
-node_modules/
-.next/
+# Logs
+*.log
 
 # IDE
 .vscode/
 .idea/
+
+# OS
+.DS_Store

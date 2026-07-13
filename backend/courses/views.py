@@ -35,8 +35,10 @@ from accounts.permissions import IsAdmin
 
 
 from commerce.services.access import AccessService
-
-
+from django.http import FileResponse
+from django.http import FileResponse
+from django.conf import settings
+import os
 
 
 
@@ -49,24 +51,24 @@ class CourseListView(ListAPIView):
 
     queryset = Course.objects.filter(
         is_published=True
+    ).prefetch_related(
+        "chapters__lessons"
     )
 
     serializer_class = CourseSerializer
-
-
-
 
 
 class CourseDetailView(RetrieveAPIView):
 
     queryset = Course.objects.filter(
         is_published=True
+    ).prefetch_related(
+        "chapters__lessons"
     )
 
     serializer_class = CourseSerializer
 
     lookup_field = "slug"
-
 
 
 
@@ -209,7 +211,9 @@ class CourseContentView(APIView):
     ):
 
         course = get_object_or_404(
-            Course,
+            Course.objects.prefetch_related(
+                "chapters__lessons"
+            ),
             id=pk
         )
 
@@ -255,7 +259,9 @@ class MyCourseContentView(APIView):
     ):
 
         course = get_object_or_404(
-            Course,
+            Course.objects.prefetch_related(
+                "chapters__lessons"
+            ),
             id=pk
         )
 
@@ -476,13 +482,10 @@ class LessonStreamView(APIView):
             )
 
 
-        return Response(
-            {
-                "video_url":
-                request.build_absolute_uri(
-                    lesson.video.url
-                )
-            }
+        return FileResponse(
+            lesson.video.open("rb"),
+            as_attachment=False,
+            filename=lesson.video.name.split("/")[-1]
         )
     
 
@@ -551,3 +554,66 @@ class LessonHeartbeatView(APIView):
         return Response(
             LessonProgressSerializer(progress).data
         )
+    
+
+class LessonStreamView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+
+    def get(
+        self,
+        request,
+        pk
+    ):
+
+        lesson = get_object_or_404(
+            Lesson,
+            id=pk,
+            is_published=True
+        )
+
+
+        if not lesson.is_free:
+
+            has_access = AccessService.has_course_access(
+                request.user,
+                lesson.chapter.course
+            )
+
+
+            if not has_access:
+
+                return Response(
+                    {
+                        "error": "You don't own this course"
+                    },
+                    status=403
+                )
+
+
+
+        file_path = lesson.video.path
+
+
+        if not os.path.exists(file_path):
+
+            return Response(
+                {
+                    "error": "Video not found"
+                },
+                status=404
+            )
+
+
+        response = FileResponse(
+            open(file_path, "rb"),
+            content_type="video/mp4"
+        )
+
+
+        response["Content-Disposition"] = "inline"
+
+        return response

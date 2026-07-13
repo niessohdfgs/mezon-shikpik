@@ -16,11 +16,13 @@ class DiscountService:
                 code=code
             )
 
+
         except Discount.DoesNotExist:
 
             raise ValueError(
                 "Invalid discount code"
             )
+
 
 
         if not discount.is_active:
@@ -30,37 +32,48 @@ class DiscountService:
             )
 
 
+
         now = timezone.now()
 
 
-        if discount.start_date:
 
-            if now < discount.start_date:
+        if discount.start_date and now < discount.start_date:
 
-                raise ValueError(
-                    "Discount is not started yet"
-                )
-
-
-        if discount.end_date:
-
-            if now > discount.end_date:
-
-                raise ValueError(
-                    "Discount has expired"
-                )
+            raise ValueError(
+                "Discount is not started yet"
+            )
 
 
-        if discount.max_usage:
 
-            if discount.used_count >= discount.max_usage:
+        if discount.end_date and now > discount.end_date:
 
-                raise ValueError(
-                    "Discount usage limit reached"
-                )
+            raise ValueError(
+                "Discount has expired"
+            )
+
+
+
+        if (
+            discount.max_usage is not None
+            and discount.used_count >= discount.max_usage
+        ):
+
+            raise ValueError(
+                "Discount usage limit reached"
+            )
+
+
+
+        if discount.percent <= 0 or discount.percent > 100:
+
+            raise ValueError(
+                "Invalid discount percent"
+            )
+
 
 
         return discount
+
 
 
 
@@ -70,13 +83,12 @@ class DiscountService:
         discount
     ):
 
-        discount_amount = (
+
+        return (
             amount *
             discount.percent
         ) // 100
 
-
-        return discount_amount
 
 
 
@@ -86,10 +98,11 @@ class DiscountService:
         discount
     ):
 
-        discount_amount = DiscountService.calculate_discount(
-            amount,
-            discount
+
+        return (
+            amount -
+            DiscountService.calculate_discount(
+                amount,
+                discount
+            )
         )
-
-
-        return amount - discount_amount

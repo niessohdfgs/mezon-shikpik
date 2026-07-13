@@ -14,6 +14,7 @@ from rest_framework.response import Response
 
 
 from django.shortcuts import get_object_or_404
+from django.http import FileResponse
 
 
 from .models import Pattern
@@ -25,7 +26,6 @@ from accounts.permissions import IsAdmin
 
 
 from commerce.services.access import AccessService
-
 
 
 
@@ -48,8 +48,6 @@ class PatternListView(ListAPIView):
 
 
 
-
-
 class PatternDetailView(RetrieveAPIView):
 
     queryset = Pattern.objects.filter(
@@ -59,7 +57,6 @@ class PatternDetailView(RetrieveAPIView):
     serializer_class = PatternSerializer
 
     lookup_field = "slug"
-
 
 
 
@@ -90,7 +87,6 @@ class AdminPatternListCreateView(ListCreateAPIView):
 
 
 
-
 class AdminPatternDetailView(
     RetrieveUpdateDestroyAPIView
 ):
@@ -103,7 +99,6 @@ class AdminPatternDetailView(
         IsAuthenticated,
         IsAdmin
     ]
-
 
 
 
@@ -138,37 +133,25 @@ class PatternDownloadView(APIView):
         )
 
 
-
         has_access = AccessService.has_pattern_access(
-
             request.user,
-
             pattern
-
         )
 
 
-
         if not has_access:
-
 
             return Response(
                 {
                     "error":
                     "You don't own this pattern"
                 },
-
                 status=403
             )
 
 
-
-
-        return Response(
-            {
-                "file":
-                request.build_absolute_uri(
-                    pattern.file.url
-                )
-            }
+        return FileResponse(
+            pattern.file.open("rb"),
+            as_attachment=True,
+            filename=pattern.file.name.split("/")[-1]
         )
